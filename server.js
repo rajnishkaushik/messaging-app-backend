@@ -125,6 +125,39 @@ app.post('/groups/remove-user', (req, res) => {
   });
 });
 
+// List all groups or a specific group with user first names
+app.get('/groups', (req, res) => {
+  const { groupId } = req.query;
+  const dir = __dirname;
+  const usersPath = path.join(__dirname, 'users.json');
+  const users = fs.existsSync(usersPath) ? JSON.parse(fs.readFileSync(usersPath, 'utf8')) : [];
+
+  fs.readdir(dir, (err, files) => {
+    if (err) return res.status(500).send('Error reading directory');
+    const groupFiles = files.filter(f => f.startsWith('group-') && f.endsWith('.json') && !f.includes('messages'));
+    const results = [];
+    groupFiles.forEach((file) => {
+      const filepath = path.join(dir, file);
+      const data = fs.readFileSync(filepath, 'utf8');
+      const group = JSON.parse(data);
+      if (!groupId || group.uuid === groupId) {
+        const members = group.userUuids.map(uuid => {
+          const user = users.find(u => u.uuid === uuid);
+          return user ? { uuid, firstName: user.firstName } : { uuid, firstName: null };
+        });
+        results.push({
+          uuid: group.uuid,
+          name: group.name,
+          createdAt: group.createdAt,
+          members
+        });
+      }
+    });
+    console.log(`Retrieved ${results.length} group(s)`);
+    res.json(results);
+  });
+});
+
 // Send message to group
 app.post('/group-messages', (req, res) => {
   const { groupUuid, senderUuid, text } = req.body;
@@ -260,3 +293,70 @@ app.delete('/messages', (req, res) => {
 });
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+// Send message to group
+app.post('/group-messages', (req, res) => {
+  const { groupUuid, senderUuid, text } = req.body;
+  if (!groupUuid || !senderUuid || !text) {
+    console.log('POST /group-messages - Missing required fields');
+    return res.status(400).send('Missing required fields');
+  }
+
+  const filename = `group-${groupUuid}-messages.json`;
+  const filepath = path.join(__dirname, filename);
+  const message = {
+    id: uuidv4(),
+    senderUuid,
+    text,
+    timestamp: new Date().toISOString()
+  };
+
+  fs.readFile(filepath, 'utf8', (err, data) => {
+    const messages = err ? [] : JSON.parse(data);
+    messages.push(message);
+    fs.writeFile(filepath, JSON.stringify(messages), () => {
+      console.log(`Message saved to ${filename}`);
+      res.status(200).send('Message saved');
+    });
+  });
+});
+
+// Retrieve group messages
+app.get('/group-messages', (req, res) => {
+  const { groupUuid } = req.query;
+  if (!groupUuid) {
+    console.log('GET /group-messages - Missing groupUuid');
+    return res.status(400).send('Missing groupUuid');
+  }
+
+  const filename = `group-${groupUuid}-messages.json`;
+  const filepath = path.join(__dirname, filename);
+
+  fs.readFile(filepath, 'utf8', (err, data) => {
+    const messages = err ? [] : JSON.parse(data);
+    console.log(`Retrieved ${messages.length} messages from ${filename}`);
+    res.json(messages);
+  });
+});
+
+// Delete group message by ID
+app.delete('/group-messages', (req, res) => {
+  const { groupUuid, id } = req.body;
+  if (!groupUuid || !id) {
+    console.log('DELETE /group-messages - Missing required fields');
+    return res.status(400).send('Missing required fields');
+  }
+
+  const filename = `group-${groupUuid}-messages.json`;
+  const filepath = path.join(__dirname, filename);
+
+  fs.readFile(filepath, 'utf8', (err, data) => {
+    let messages = err ? [] : JSON.parse(data);
+    const originalLength = messages.length;
+    messages = messages.filter(m => m.id !== id);
+    fs.writeFile(filepath, JSON.stringify(messages), () => {
+      console.log(`Deleted message with ID ${id} from ${filename} (before: ${originalLength}, after: ${messages.length})`);
+      res.status(200).send('Message deleted');
+    });
+  });
+});
