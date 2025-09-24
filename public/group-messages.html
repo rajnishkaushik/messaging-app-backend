@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Group Messages</title>
+    <link rel="stylesheet" href="css/chat-style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+
+<body>
+    <h2 id="chatTitle">Group Chat</h2>
+    <div id="messages"></div>
+    <div id="inputContainer">
+        <input type="text" id="messageInput" placeholder="Type a message">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const groupUuid = params.get('groupUuid');
+        const loggedInUser = params.get('loggedInUser');
+
+        Promise.all([
+            fetch(`/groups/by-uuid/${groupUuid}`).then(res => res.json()),
+            fetch(`/users?uuid=${loggedInUser}`).then(res => res.json())
+        ])
+            .then(([group, user]) => {
+                const groupName = group.name || groupUuid;
+                const userName = user[0].firstName || loggedInUser;
+                const titleText = `${userName} in: ${groupName}`;
+                document.getElementById('chatTitle').textContent = titleText;
+                document.title = titleText;
+            });
+
+        function formatTimestamp(isoString) {
+            const date = new Date(isoString);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffHours = diffMs / (1000 * 60 * 60);
+
+            if (diffHours < 6) {
+                const diffMinutes = Math.floor(diffMs / (1000 * 60));
+                if (diffMinutes < 1) return 'Just now';
+                if (diffMinutes < 60) return `${diffMinutes} minute${diffMinutes > 1 ? 's' : ''} ago`;
+                const hours = Math.floor(diffMinutes / 60);
+                return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+            } else {
+                return date.toLocaleString('en-US', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                });
+            }
+        }
+
+        function fetchMessages() {
+            fetch(`/group-messages?groupUuid=${groupUuid}`)
+                .then(res => res.json())
+                .then(messages => {
+                    const container = document.getElementById('messages');
+                    container.innerHTML = '';
+                    messages.forEach(msg => {
+                        const wrapper = document.createElement('div');
+                        wrapper.style.display = 'flex';
+                        wrapper.style.flexDirection = 'column';
+                        wrapper.style.alignItems = msg.senderUuid === loggedInUser ? 'flex-end' : 'flex-start';
+
+                        const bubble = document.createElement('div');
+                        bubble.className = `message ${msg.senderUuid === loggedInUser ? 'outgoing' : 'incoming'}`;
+                        bubble.textContent = msg.text;
+
+                        const timestamp = document.createElement('div');
+                        timestamp.className = 'timestamp';
+                        timestamp.textContent = formatTimestamp(msg.timestamp);
+
+                        bubble.appendChild(timestamp);
+                        wrapper.appendChild(bubble);
+                        container.appendChild(wrapper);
+                    });
+                    container.scrollTop = container.scrollHeight;
+                });
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const text = input.value;
+            if (!text.trim()) return;
+
+            fetch('/group-messages', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ groupUuid, senderUuid: loggedInUser, text })
+            }).then(() => {
+                input.value = '';
+                fetchMessages();
+            });
+        }
+
+        document.getElementById('messageInput').addEventListener('keydown', function (event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                sendMessage();
+            }
+        });
+
+        window.onload = () => {
+            fetchMessages();
+            setInterval(fetchMessages, 5000);
+        };
+    </script>
+</body>
+
+</html>

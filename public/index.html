@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Messaging App Home</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f9f9f9;
+    }
+
+    h1,
+    h2 {
+      text-align: center;
+      color: #333;
+    }
+
+    ul {
+      list-style-type: none;
+      padding: 0;
+    }
+
+    li {
+      margin: 10px 0;
+    }
+
+    a {
+      display: block;
+      padding: 12px;
+      background-color: #007bff;
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      text-align: center;
+    }
+
+    a:hover {
+      background-color: #0056b3;
+    }
+
+    #userList a {
+      background-color: #28a745;
+    }
+
+    #userList a:hover {
+      background-color: #1e7e34;
+    }
+
+    @media (max-width: 600px) {
+      body {
+        padding: 10px;
+      }
+
+      a {
+        font-size: 0.95em;
+        padding: 10px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Welcome to the Messaging App</h1>
+  <ul>
+    <li><a href="user-create.html">Create New User</a></li>
+    <li><a href="group-create.html">Create New Group</a></li>
+    <li><a href="group-add-user.html">Add User to Group</a></li>
+    <li><a href="group-remove-user.html">Remove User from Group</a></li>
+  </ul>
+
+  <h2>All Users</h2>
+  <ul id="userList"></ul>
+
+  <script>
+    fetch('/users')
+      .then(res => res.json())
+      .then(users => {
+        const list = document.getElementById('userList');
+        users.forEach(user => {
+          const li = document.createElement('li');
+          const link = document.createElement('a');
+          const name = user.firstName || user.profileName || user.uuid;
+          link.href = `user-home.html?loggedInUser=${user.uuid}`;
+          link.textContent = `Go to ${name}'s Home`;
+          li.appendChild(link);
+          list.appendChild(li);
+        });
+      });
+  </script>
+</body>
+
+</html>

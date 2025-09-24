@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create User</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f2f2f2;
+        }
+
+        h2 {
+            text-align: center;
+            color: #333;
+        }
+
+        form {
+            max-width: 500px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        label {
+            display: block;
+            margin-bottom: 15px;
+            color: #555;
+        }
+
+        input[type="text"],
+        input[type="date"] {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1em;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+
+            form {
+                padding: 15px;
+            }
+
+            button {
+                font-size: 0.95em;
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <h2>Create a New User</h2>
+    <form id="createUserForm">
+        <label>First Name: <input type="text" name="firstName" required></label><br>
+        <label>Last Name: <input type="text" name="lastName"></label><br>
+        <label>Profile Name: <input type="text" name="profileName"></label><br>
+        <label>Phone Country Code: <input type="text" name="phoneCountryCode"></label><br>
+        <label>Phone Number: <input type="text" name="phoneNumber"></label><br>
+        <label>Date of Birth: <input type="date" name="dateOfBirth"></label><br>
+        <button type="submit">Create User</button>
+    </form>
+
+    <script>
+        document.getElementById('createUserForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const user = Object.fromEntries(formData.entries());
+
+            fetch('/users', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(user)
+            })
+                .then(res => res.json())
+                .then(createdUser => {
+                    alert(`User created: ${createdUser.firstName}`);
+                    window.location.href = `user-home.html?loggedInUser=${createdUser.uuid}`;
+                });
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Group</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        h2 {
+            text-align: center;
+            color: #333;
+        }
+
+        form {
+            max-width: 400px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        label {
+            display: block;
+            margin-bottom: 15px;
+            color: #555;
+        }
+
+        input[type="text"],
+        input[type="date"] {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+
+            form {
+                padding: 15px;
+            }
+
+            button {
+                font-size: 14px;
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <h2>Create a New Group</h2>
+    <form id="createGroupForm"> <label>Group Name: <input type="text" name="groupName" required> </label>
+        <label>Description: <input type="text" name="description"> </label> <label>Admin UUID: <input type="text"
+                name="createdBy" required> </label> <button type="submit">Create Group</button> </form>
+
+    <script> document.getElementById('createGroupForm').addEventListener('submit', function (e) {
+            e.preventDefault(); const formData = new FormData(e.target); const group = Object.fromEntries(formData.entries());
+
+            fetch('/groups', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: group.groupName,
+                    description: group.description,
+                    createdBy: group.createdBy
+                })
+            })
+                .then(res => res.json())
+                .then(createdGroup => {
+                    alert(`Group created: ${createdGroup.name}`);
+                    // Optionally redirect or show group details
+                });
+        });
+
+    </script>
+</body>
+
+</html>
