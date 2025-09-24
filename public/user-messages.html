@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Messaging App</title>
+  <link rel="stylesheet" href="css/chat-style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+
+<body>
+  <h2 id="chatTitle"></h2>
+  <div id="messages"></div>
+  <div id="inputContainer">
+    <input type="text" id="messageInput" placeholder="Type a message">
+    <button onclick="sendMessage()">Send</button>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const loggedInUser = params.get('loggedInUser');
+    const senderUser = params.get('senderUser');
+
+    fetch(`/users?uuid=${senderUser}&uuid=${loggedInUser}`)
+      .then(res => res.json())
+      .then(userList => {
+        const sender = userList.find(u => u.uuid === senderUser);
+        const loggedIn = userList.find(u => u.uuid === loggedInUser);
+        const senderName = sender?.firstName || senderUser;
+        const loggedName = loggedIn?.firstName || loggedInUser;
+        document.getElementById('chatTitle').textContent = `${loggedName} to ${senderName}`;
+        document.title = `${loggedName} to ${senderName}`;
+      });
+
+    function formatTimestamp(isoString) {
+      const date = new Date(isoString);
+      const now = new Date();
+      const diffMs = now - date;
+      const diffHours = diffMs / (1000 * 60 * 60);
+
+      if (diffHours < 6) {
+        const diffMinutes = Math.floor(diffMs / (1000 * 60));
+        if (diffMinutes < 1) return 'Just now';
+        if (diffMinutes < 60) return `${diffMinutes} minute${diffMinutes > 1 ? 's' : ''} ago`;
+        const hours = Math.floor(diffMinutes / 60);
+        return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+      } else {
+        return date.toLocaleString('en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        });
+      }
+    }
+
+    function fetchMessages() {
+      Promise.all([
+        fetch(`/messages?uuid1=${senderUser}&uuid2=${loggedInUser}`).then(res => res.json()),
+        fetch(`/messages?uuid1=${loggedInUser}&uuid2=${senderUser}`).then(res => res.json())
+      ]).then(([incoming, outgoing]) => {
+        const allMessages = [...incoming, ...outgoing];
+        const sorted = allMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+        const container = document.getElementById('messages');
+        container.innerHTML = '';
+        sorted.forEach(msg => {
+          const wrapper = document.createElement('div');
+          wrapper.style.display = 'flex';
+          wrapper.style.flexDirection = 'column';
+          wrapper.style.alignItems = msg.senderUuid === loggedInUser ? 'flex-end' : 'flex-start';
+
+          const bubble = document.createElement('div');
+          bubble.className = `message ${msg.senderUuid === loggedInUser ? 'outgoing' : 'incoming'}`;
+
+          const timestamp = document.createElement('div');
+          timestamp.className = 'timestamp';
+          timestamp.textContent = formatTimestamp(msg.timestamp);
+
+          bubble.textContent = msg.text;
+          bubble.appendChild(timestamp);
+
+          wrapper.appendChild(bubble);
+          container.appendChild(wrapper);
+        });
+        container.scrollTop = container.scrollHeight;
+      });
+    }
+
+    function sendMessage() {
+      const input = document.getElementById('messageInput');
+      const text = input.value;
+      if (!text.trim()) return;
+
+      fetch('/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uuid1: loggedInUser, uuid2: senderUser, senderUuid: loggedInUser, text })
+      }).then(() => {
+        input.value = '';
+        fetchMessages();
+      });
+    }
+
+    document.getElementById('messageInput').addEventListener('keydown', function (event) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        sendMessage();
+      }
+    });
+
+    window.onload = () => {
+      fetchMessages();
+      setInterval(fetchMessages, 5000);
+    };
+  </script>
+</body>
+
+</html>

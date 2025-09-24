@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="pageTitle">User Home</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f2f5;
+        }
+
+        h2,
+        h3 {
+            text-align: center;
+            color: #333;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+            max-width: 600px;
+            margin: 0 auto 20px auto;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        ul li {
+            padding: 12px 20px;
+            border-bottom: 1px solid #eee;
+            color: #555;
+        }
+
+        ul li:last-child {
+            border-bottom: none;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+
+            ul {
+                margin: 0 10px 20px 10px;
+            }
+
+            ul li {
+                padding: 10px 15px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <h2 id="userTitle"></h2>
+    <ul id="threadList"></ul>
+
+    <h3>Groups You Belong To</h3>
+    <ul id="groupList"></ul>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const loggedInUser = params.get('loggedInUser');
+
+        fetch(`/users?uuid=${loggedInUser}`)
+            .then(res => res.json())
+            .then(([user]) => {
+                const name = user?.firstName || loggedInUser;
+                document.getElementById('userTitle').textContent = `Message Threads for ${name}`;
+                document.title = `Chat for ${name}`;
+
+                fetch(`/threads?uuid=${loggedInUser}`)
+                    .then(res => res.json())
+                    .then(threads => {
+                        const uuidParams = threads.map(uuid => `uuid=${uuid}`).join('&');
+                        fetch(`/users?${uuidParams}`)
+                            .then(res => res.json())
+                            .then(userList => {
+                                const userMap = {};
+                                userList.forEach(u => {
+                                    userMap[u.uuid] = u.firstName;
+                                });
+
+                                const list = document.getElementById('threadList');
+
+                                // Existing threads
+                                if (threads.length > 0) {
+                                    threads.forEach(otherUser => {
+                                        const li = document.createElement('li');
+                                        const link = document.createElement('a');
+                                        const name = userMap[otherUser] || otherUser;
+                                        link.href = `user-messages.html?loggedInUser=${loggedInUser}&senderUser=${otherUser}`;
+                                        link.textContent = `Chat with ${name}`;
+                                        li.appendChild(link);
+                                        list.appendChild(li);
+                                    });
+                                } else {
+                                    list.innerHTML = '<li>No threads found.</li>';
+                                }
+
+                                // New chat links (temporary full user load)
+                                fetch('/users')
+                                    .then(res => res.json())
+                                    .then(allUsers => {
+                                        const existingSet = new Set(threads);
+                                        const newUsers = allUsers.filter(u => u.uuid !== loggedInUser && !existingSet.has(u.uuid));
+
+                                        if (newUsers.length > 0) {
+                                            const newHeader = document.createElement('h3');
+                                            newHeader.textContent = 'Start New Chat';
+                                            list.appendChild(newHeader);
+
+                                            newUsers.forEach(user => {
+                                                const li = document.createElement('li');
+                                                const link = document.createElement('a');
+                                                link.href = `user-messages.html?loggedInUser=${loggedInUser}&senderUser=${user.uuid}`;
+                                                link.textContent = `Chat with ${user.firstName}`;
+                                                li.appendChild(link);
+                                                list.appendChild(li);
+                                            });
+                                        }
+                                    });
+
+
+
+
+                            });
+
+
+
+
+                        fetch(`/groups/by-user/${loggedInUser}`)
+                            .then(res => res.json())
+                            .then(groups => {
+                                const list = document.getElementById('groupList');
+                                if (groups.length === 0) {
+                                    list.innerHTML = '<li>No groups found</li>';
+                                    return;
+                                }
+
+                                groups.forEach(group => {
+                                    const li = document.createElement('li');
+                                    const link = document.createElement('a');
+                                    link.href = `group-messages.html?groupUuid=${group.uuid}&loggedInUser=${loggedInUser}`;
+                                    link.textContent = `Group: ${group.name}`;
+                                    li.appendChild(link);
+                                    list.appendChild(li);
+                                });
+                            });
+
+                    });
+
+            });
+
+    </script>
+
+</body>
+
+</html>
